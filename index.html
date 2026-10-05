@@ -19,15 +19,15 @@ button{font:inherit;font-weight:700;color:#10131b;background:#ffc857;border:0;bo
 #stick{position:absolute;width:110px;height:110px;border-radius:50%;border:2px solid #ffffff44;display:none}
 #nub{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;background:#ffffff55}
 .b{position:absolute;width:64px;height:64px;border-radius:50%;background:#ffffff1c;border:2px solid #ffffff55;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
-</style></head><body>
+#mm{position:fixed;right:8px;top:calc(46px + env(safe-area-inset-top));border:1px solid #ffffff44;border-radius:6px;pointer-events:none}#obj{right:150px!important}</style></head><body>
 <canvas id="cv"></canvas>
 <div id="hud"><div class="c" id="pw">POWER</div><div class="c" id="hp"></div><div class="c" id="am"></div><div class="c" id="it"></div></div>
-<div id="obj"></div><div id="toast"></div>
+<canvas id="mm" width="130" height="82"></canvas><div id="obj"></div><div id="toast"></div>
 <div id="pad"><div id="stick"><div id="nub"></div></div>
 <div class="b" id="bF" style="right:18px;bottom:calc(60px + env(safe-area-inset-bottom))">FIRE</div>
 <div class="b" id="bE" style="right:96px;bottom:calc(24px + env(safe-area-inset-bottom))">USE</div>
 <div class="b" id="bS" style="right:96px;bottom:calc(100px + env(safe-area-inset-bottom))">SNEAK</div>
-<div class="b" id="bM" style="right:18px;bottom:calc(136px + env(safe-area-inset-bottom))">MED</div></div>
+<div class="b" id="bW" style="right:96px;bottom:calc(176px + env(safe-area-inset-bottom))">GUN</div><div class="b" id="bM" style="right:18px;bottom:calc(136px + env(safe-area-inset-bottom))">MED</div></div>
 <div id="ui"><div id="box"></div></div>
 <script>
 const $=id=>document.getElementById(id),cv=$('cv'),g=cv.getContext('2d'),dk=document.createElement('canvas'),dg=dk.getContext('2d');
@@ -42,24 +42,53 @@ const hit=(x,y,r)=>walls.some(w=>x>w.x-r&&x<w.x+w.w+r&&y>w.y-r&&y<w.y+w.h+r);
 function mv(o,dx,dy,r){if(!hit(o.x+dx,o.y,r))o.x+=dx;if(!hit(o.x,o.y+dy,r))o.y+=dy;o.x=Math.max(12,Math.min(W-12,o.x));o.y=Math.max(12,Math.min(H-12,o.y))}
 function los(a,b,c,d){const n=Math.hypot(c-a,d-b)/12|0;for(let i=1;i<n;i++){const t=i/n;if(hit(a+(c-a)*t,b+(d-b)*t,0))return false}return true}
 const D=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-let P,gen,syn,en,bul,cans,ammo,cams,fixer,S,run=false,last=0,toastT=0,shake=0;
-function init(){
-P={x:300,y:790,hp:100,ammo:12,med:1,fuel:0,ang:0,sneak:false,cd:0,moving:0};
-gen={x:200,y:850,fuel:40};syn={x:1180,y:380,on:true};
-S={deliv:0,traded:false,hostile:true,kills:0,fired:false,sab:false,t:0,noise:0,done:false,camCd:0,flash:0};
-en=[[1240,410],[1450,390],[1310,235],[1385,335]].map(([x,y],i)=>({x,y,hx:x,hy:y,tx:x,ty:y,hp:3,st:0,a:i*1.5,cd:0,lost:0,pt:0}));
-bul=[];cans=[[1260,220],[1330,205],[1405,245]].map(([x,y])=>({x,y,got:false}));
-ammo=[{x:760,y:560,got:false},{x:1060,y:320,got:false},{x:330,y:640,got:false}];
-cams=[{x:1215,y:325,a0:1.2},{x:1445,y:325,a0:1.9}];fixer={x:1010,y:385};
-msg('Night one. The generator is running low.',4)}
+let P,gen,syn,en,bul,cans,ammo,cams,fixer,S,V,mi=0,run=false,last=0,toastT=0,shake=0;
+const WP=[['Machete',3,.45,0,260,1,.12,0,1],['Pistol',1,.28,.06,720,1,1.2,420,1],['Taser',2,.8,0,500,1,.25,60,3],['Revolver',2,.5,.04,760,1,1.2,450,5],['Dane gun',1,.9,.25,600,6,.5,500,7],['Crossbow',3,.9,.02,600,1,1.2,40,9],['SMG',1,.1,.14,700,1,1,420,11],['Shotgun',1,.7,.22,640,5,.6,480,13],['AK-47',2,.13,.08,780,1,1.3,520,15],['Rifle',3,.6,.01,950,1,1.5,500,17],['Sniper',6,1.1,0,1200,1,1.8,300,19],['LMG',2,.07,.1,800,1,1.3,540,20]];
+const AV=()=>WP.filter(w=>w[8]<=mi+1),TY=[[3,0,10],[5,0,9],[7,0,12]];
+const LK=[{k:'#6b4226',b:'#b5483e',p:'#2b2f3a',h:'#1a1a1a'},{k:'#5a3a22',b:'#6f7d3a',p:'#55632b',h:'#6f7d3a',c:1,v:'#8a9a4a'},{k:'#4a2f1d',b:'#15171c',p:'#15171c',h:'#000',v:'#2c3038'},{k:'#4a2f1d',b:'#4f4f58',v:'#777c84',p:'#d9d6cf',h:'#cdb67a',br:1},{k:'#7a4a2a',b:'#ffc857',p:'#2b2f3a',h:'#222'}];
+const CG='Mama Nkechi, Community Defence',ZA='Engr. Zainab, The Grid',BE='Capt. Bello, Security Forces',CH='Chidi, The Runners';
+// [title,giver,type(F fetch,G go,K kill,S sabotage,H hold),story,points,enemies[x,y,type],startFuel,powerChoice]
+const MS=[
+['Keep the Lights On',CG,'F','The grid is gone and our generator is nearly dry. Get fuel from the workshop. Fight, sneak, or trade with the fixer.',[[1260,220],[1330,205]],[[1240,410,0],[1450,390,0]],40],
+['Dry Wells',CG,'F','The market pumps need fuel and Syndicate boys are guarding the stalls.',[[900,560],[1000,380],[650,520]],[[950,500,0],[700,470,0],[1010,420,0]],30],
+['Medicine Run','Dr. Amaka, Clinic','G','Collect the insulin crate at the clinic and bring it home before the fridge dies.',[[780,840],[300,800]],[[900,860,0],[700,900,0]],35],
+['First Signal',ZA,'G','A radio mast keeps pinging orders. Someone is switching districts off on purpose. Reach it.',[[300,180]],[[330,260,0],[420,150,0],[250,260,0]],35],
+['Blackout Raid','Don Ozo, The Syndicate','S','Cut the Security depot generator. The Syndicate wants the dark.',[[1180,380]],[[1240,410,1],[1450,390,1],[1310,235,1]],30],
+['Escort the Technician',ZA,'G','Walk Engr. Femi to the north substation, then bring him home.',[[1000,150],[300,790]],[[800,200,0],[1100,260,0],[600,300,0]],30],
+['Checkpoint',BE,'K','Thugs took the east checkpoint. Clear every one of them.',[],[[1450,600,0],[1500,520,0],[1400,680,0],[1520,650,0],[1480,580,0]],30],
+['The Power Choice',CG,'F','Three cans left. The clinic and the market both want the light. You decide.',[[1480,300],[1400,450],[1300,560]],[[1460,350,1],[1350,500,1]],20],
+['Runners Debt',CH,'G','Move a package from the old motor park to the market. Take a bike for speed.',[[1450,820],[900,540]],[[1400,780,0],[1300,860,0],[1100,900,0]],35],
+['Tech Corridor',ZA,'G','The data centre still has power. Find out who is feeding it.',[[500,160]],[[560,200,1],[450,120,1],[380,200,1],[520,260,1]],35],
+['Cold Server',ZA,'S','Kill the data centre generator. Watch the cameras.',[[500,160]],[[560,200,1],[450,120,1],[380,200,1]],35],
+['Night Siege',CG,'H','They want your light. Defend the generator for 60 seconds.',[60],[],70],
+['The Parcel',BE,'G','Bello says deliver this fuel parcel south. Chidi says it is stolen medicine. See the drop point.',[[1000,880]],[[950,850,1],[1100,900,1],[1050,800,0]],30],
+['Port Edge',CH,'K','Smugglers at the docks are hoarding fuel. Clear the warehouse.',[],[[1450,880,0],[1350,930,0],[1500,820,0],[1250,900,0],[1400,840,0]],30],
+['The Directorate','Unknown caller, The Directorate','G','A calm voice offers to restore power for a price. Meet at the warehouse.',[[1300,870]],[[1250,820,2],[1350,900,2],[1200,900,2]],30],
+['Dead Switch',ZA,'S','The Directorate runs a relay at the east yard. Kill it.',[[1500,500]],[[1450,460,2],[1500,560,2],[1400,520,2]],30],
+['Rescue Zainab',CH,'G','Zainab was taken. Reach the holding yard and bring her home.',[[1500,700],[300,790]],[[1460,660,2],[1520,740,2],[1400,720,2],[1500,620,1]],30],
+['Fuel Convoy',BE,'F','Hit the Directorate fuel trucks. Bring back everything.',[[1480,300],[1480,450],[1400,600]],[[1450,350,2],[1400,500,2],[1300,560,2],[1500,420,1]],20],
+['Last Stand',CG,'H','The Directorate is coming for your generator. Hold for 90 seconds.',[90],[],80],
+['The Switch',ZA,'G','Reach the central switch. Whoever holds it decides who gets light first.',[[800,150]],[[760,200,2],[860,200,2],[700,260,2],[900,260,2],[800,300,2]],30]];
+const mk=(x,y,t)=>({x,y,hx:x,hy:y,tx:x,ty:y,hp:TY[t][0],t,st:0,a:0,cd:0,lost:0,pt:0});
+function init(n){mi=n;const m=MS[n],ty=m[2],o=P?{a:P.ammo,m:P.med}:{a:12,m:1};
+P={x:300,y:790,hp:100,ammo:Math.max(o.a,24),med:Math.max(1,o.m),fuel:0,ang:0,sneak:false,cd:0,moving:0,w:AV().length-1,v:null,wk:0};
+gen={x:200,y:850,fuel:m[6]};const sp=ty=='S'?m[4][0]:[1180,380];syn={x:sp[0],y:sp[1],on:ty=='S'||n==0};
+cams=syn.on?[{x:syn.x+35,y:syn.y-55,a0:1.2},{x:syn.x+265,y:syn.y-55,a0:1.9}]:[];
+S={deliv:0,traded:false,hostile:true,kills:0,fired:false,sab:false,t:0,noise:0,nr:420,flash:0,camCd:0,gi:0,hold:ty=='H'?m[4][0]:0,wv:8};
+en=m[5].map(([x,y,t])=>mk(x,y,t));bul=[];cans=ty=='F'?m[4].map(([x,y])=>({x,y,got:false})):[];
+ammo=[{x:760,y:560,got:false},{x:1060,y:320,got:false},{x:330,y:640,got:false}];fixer=n==0?{x:1010,y:385}:null;
+V=[{n:'Okada',x:610,y:620,s:280,a:0,c:'#e8e8e8',w:26,h:9},{n:'Keke',x:640,y:760,s:210,a:0,c:'#2e8b57',w:30,h:18},{n:'Danfo bus',x:610,y:900,s:240,a:0,c:'#f1c40f',w:46,h:20}]}
 function msg(t,s=2.5){$('toast').textContent=t;toastT=s}
+function cyc(){if(!run)return;P.w=(P.w+1)%AV().length;msg('Weapon: '+AV()[P.w][0])}
+function ot(){const m=MS[mi],t=m[2];return t=='F'?(P.fuel>0||cans.every(c=>c.got)?'Deliver the fuel to your generator (USE).':`Collect fuel cans (${cans.filter(c=>c.got).length}/${cans.length}).`):t=='G'?`Go to the gold marker on the map (${S.gi+1}/${m[4].length}).`:t=='K'?`Eliminate all hostiles (${en.filter(e=>e.hp>0).length} left).`:t=='S'?'Find the enemy generator and cut it (USE).':`Defend the generator: ${Math.ceil(S.hold)}s.`}
+function tg(){const m=MS[mi],t=m[2];if(t=='F'){if(P.fuel>0||S.deliv>=m[4].length)return[[gen.x,gen.y]];return cans.filter(c=>!c.got).map(c=>[c.x,c.y])}if(t=='G')return[m[4][S.gi]];if(t=='S'&&syn.on)return[[syn.x,syn.y]];if(t=='H')return[[gen.x,gen.y]];if(t=='K')return en.filter(e=>e.hp>0).map(e=>[e.x,e.y]);return[]}
 const pstate=()=>gen.fuel<=0?0:gen.fuel<30?1:gen.fuel<85?2:3,PN=['OFF','LIMITED','STABLE','OVERLOADED'],PC=['#7d8597','#ffb347','#7CFC9A','#ff5a4d'];
 // audio
 let AC,hum;function aud(){if(AC)return;try{AC=new AudioContext();const o=AC.createOscillator(),f=AC.createBiquadFilter();hum=AC.createGain();o.type='sawtooth';o.frequency.value=46;f.frequency.value=150;o.connect(f);f.connect(hum);hum.connect(AC.destination);hum.gain.value=0;o.start()}catch(e){}}
 function bang(v){if(!AC)return;const n=4400,b=AC.createBuffer(1,n,22050),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);const s=AC.createBufferSource(),q=AC.createGain();q.gain.value=v;s.buffer=b;s.connect(q);q.connect(AC.destination);s.start()}
 // input
 const K={},M={x:0,y:0,on:false},T={mx:0,my:0,F:0,E:0,S:0,id:null,ox:0,oy:0};
-addEventListener('keydown',e=>{K[e.code]=1;aud();if(e.code=='KeyE')use();if(e.code=='KeyQ'||e.code=='KeyH')heal();if(e.code=='ShiftLeft')P&&(P.sneak=true);if(e.code=='Space')e.preventDefault()});
+addEventListener('keydown',e=>{K[e.code]=1;aud();if(e.code=='KeyE')use();if(e.code=='KeyQ'||e.code=='KeyH')heal();if(e.code=='ShiftLeft')P&&(P.sneak=true);if(e.code=='Space')e.preventDefault();if(e.code=='KeyZ'||e.code=='Tab'){e.preventDefault();cyc()}});
 addEventListener('keyup',e=>{K[e.code]=0;if(e.code=='ShiftLeft'&&P)P.sneak=false});
 cv.addEventListener('mousemove',e=>{M.x=e.clientX;M.y=e.clientY;M.on=true});
 cv.addEventListener('mousedown',()=>{aud();K.Mouse=1});addEventListener('mouseup',()=>K.Mouse=0);
@@ -70,25 +99,42 @@ const end=e=>{for(const t of e.changedTouches)if(t.identifier==T.id){T.id=null;T
 pd.addEventListener('touchend',end);pd.addEventListener('touchcancel',end);
 const hold=(id,k)=>{const b=$(id);b.addEventListener('touchstart',e=>{e.preventDefault();T[k]=1;aud()});b.addEventListener('touchend',()=>T[k]=0)};
 hold('bF','F');$('bE').addEventListener('touchstart',e=>{e.preventDefault();use()});$('bM').addEventListener('touchstart',e=>{e.preventDefault();heal()});
-$('bS').addEventListener('touchstart',e=>{e.preventDefault();P.sneak=!P.sneak;$('bS').style.background=P.sneak?'#ffc85777':''})}
+$('bW').addEventListener('touchstart',e=>{e.preventDefault();cyc()});$('bS').addEventListener('touchstart',e=>{e.preventDefault();P.sneak=!P.sneak;$('bS').style.background=P.sneak?'#ffc85777':''})}
 function heal(){if(!run)return;if(P.med>0&&P.hp<100){P.med--;P.hp=Math.min(100,P.hp+40);msg('Medicine used. +40 health')}else msg(P.med?'Health is full':'No medicine left')}
 function use(){if(!run)return;
+if(P.v){P.v=null;msg('Left the vehicle');return}
 if(D(P,gen)<60){if(P.fuel>0){gen.fuel=Math.min(100,gen.fuel+30*P.fuel);S.deliv+=P.fuel;msg(`Generator refuelled (${P.fuel} can${P.fuel>1?'s':''})`);P.fuel=0}else msg(`Generator fuel: ${gen.fuel|0}%`);return}
-if(syn.on&&D(P,syn)<60){syn.on=false;S.sab=true;S.noise=.6;msg("Syndicate generator killed. Their cameras and lights are down.");return}
-if(D(P,fixer)<60){if(S.traded)msg('"We are good. Go safe."');else if(P.med>0){P.med--;P.fuel+=2;S.traded=true;S.hostile=false;msg('Traded 1 medicine for 2 fuel cans. The guards will let you pass.',3.5)}else msg('"No medicine, no fuel."');return}
+if(syn.on&&D(P,syn)<60){syn.on=false;cams=[];S.sab=true;S.noise=.6;msg("Enemy generator killed. Their cameras and lights are down.");return}
+if(fixer&&D(P,fixer)<60){if(S.traded)msg('"We are good. Go safe."');else if(P.med>0){P.med--;P.fuel+=2;S.traded=true;S.hostile=false;msg('Traded 1 medicine for 2 fuel cans. The guards will let you pass.',3.5)}else msg('"No medicine, no fuel."');return}
+for(const v of V)if(D(P,v)<45){P.v=v;msg(`Driving the ${v.n}. USE to get out. Engines are loud.`);return}
 msg('Nothing to use here')}
-// game
-function shoot(from,ang,spd,own,dmg){bul.push({x:from.x,y:from.y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,own,dmg,t:1.2})}
+function shoot(from,ang,spd,own,dmg,life=1.2){bul.push({x:from.x,y:from.y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,own,dmg,t:life})}
+function ch(x,y,a,L,w){g.save();g.translate(x,y);g.fillStyle='#0007';g.beginPath();g.ellipse(0,10,11,4,0,0,7);g.fill();
+const s=Math.sin(w)*3;g.fillStyle=L.p;g.fillRect(-5,2+s,4,9);g.fillRect(1,2-s,4,9);
+g.fillStyle=L.b;g.fillRect(-8,-8,16,11);if(L.v){g.fillStyle=L.v;g.fillRect(-6,-7,12,9)}
+g.fillStyle=L.k;g.beginPath();g.arc(0,-14,6,0,7);g.fill();g.fillStyle=L.h;
+if(L.c){g.fillRect(-7,-21,14,6);g.fillRect(-4,-17,11,2)}else{g.beginPath();g.arc(0,-16,6,Math.PI,0);g.fill();if(L.br)g.fillRect(-9,-15,3,12)}
+g.rotate(a);g.fillStyle=L.k;g.fillRect(2,-2,8,4);g.fillStyle='#111';g.fillRect(8,-2,10,3);g.restore()}
+const mm=$('mm'),mg=mm.getContext('2d'),sc=130/1600;
+function mini(){mg.clearRect(0,0,130,82);mg.fillStyle='#10151d';mg.fillRect(0,0,130,82);mg.fillStyle='#667';for(const w of walls)mg.fillRect(w.x*sc,w.y*sc,Math.max(1,w.w*sc),Math.max(1,w.h*sc));
+mg.strokeStyle='#ffffff66';mg.strokeRect(cx*sc,cy*sc,vw/Z*sc,vh/Z*sc);
+const dot=(x,y,c,r=2)=>{mg.fillStyle=c;mg.beginPath();mg.arc(x*sc,y*sc,r,0,7);mg.fill()};
+dot(gen.x,gen.y,PC[pstate()],3);if(syn.on)dot(syn.x,syn.y,'#f55',3);for(const v of V)dot(v.x,v.y,'#4cf');
+for(const e of en)if(e.hp>0&&D(P,e)<260)dot(e.x,e.y,'#f33');
+for(const q of tg())dot(q[0],q[1],'#ffc857',Math.sin(S.t*6)>0?4:3);
+mg.save();mg.translate(P.x*sc,P.y*sc);mg.rotate(P.ang);mg.fillStyle='#fff';mg.beginPath();mg.moveTo(6,0);mg.lineTo(-3,3.5);mg.lineTo(-3,-3.5);mg.fill();mg.restore();
+mg.fillStyle='#fff';mg.font='bold 9px sans-serif';mg.fillText('N',60,9)}
 function update(dt){
 S.t+=dt;S.noise=Math.max(0,S.noise-dt);S.flash=Math.max(0,S.flash-dt);S.camCd=Math.max(0,S.camCd-dt);
 // player
 let ix=(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+T.mx,iy=(K.KeyS||K.ArrowDown?1:0)-(K.KeyW||K.ArrowUp?1:0)+T.my;
 const l=Math.hypot(ix,iy);if(l>1){ix/=l;iy/=l}P.moving=l;
-const sp=P.sneak?70:150;mv(P,ix*sp*dt,iy*sp*dt,9);
+const sp=P.v?P.v.s:P.sneak?70:150;if(P.v){const v=P.v;if(l>.1)v.a=Math.atan2(iy,ix);mv(v,ix*sp*dt,iy*sp*dt,12);P.x=v.x;P.y=v.y}else mv(P,ix*sp*dt,iy*sp*dt,9);P.wk+=l*dt*10;
 // aim
 let tgt=null,bd=360;for(const e of en)if(e.hp>0){const d=D(P,e);if(d<bd&&los(P.x,P.y,e.x,e.y)){bd=d;tgt=e}}
 if(M.on&&!TOUCH)P.ang=Math.atan2(M.y/Z+cy-P.y,M.x/Z+cx-P.x);else if(tgt)P.ang=Math.atan2(tgt.y-P.y,tgt.x-P.x);else if(l>.2)P.ang=Math.atan2(iy,ix);
-P.cd-=dt;if((K.Mouse||K.Space||T.F)&&P.cd<=0){if(P.ammo>0){P.ammo--;P.cd=.28;shoot(P,P.ang+(Math.random()-.5)*.06,720,1,1);S.noise=.35;S.flash=.08;S.fired=true;S.hostile=true;bang(.25);shake=3}else{P.cd=.5;msg('Out of ammo')}}
+const wp=AV()[P.w],cost=wp[4]>500?1:0;
+P.cd-=dt;if((K.Mouse||K.Space||T.F)&&P.cd<=0){if(!cost||P.ammo>0){P.ammo-=cost;P.cd=wp[2];for(let i=0;i<wp[5];i++)shoot(P,P.ang+(Math.random()-.5)*wp[3]*2,wp[4],1,wp[1],wp[6]);S.noise=.35;S.nr=wp[7];S.flash=wp[7]>100?.08:0;if(wp[7]>100)S.hostile=true;S.fired=true;bang(wp[7]/1600);shake=wp[7]/150}else{P.cd=.5;msg('Out of ammo')}}
 // pickups
 for(const c of cans)if(!c.got&&D(P,c)<24){c.got=true;P.fuel++;msg('Fuel can picked up')}
 for(const a of ammo)if(!a.got&&D(P,a)<24){a.got=true;P.ammo+=8;msg('+8 ammo')}
@@ -96,7 +142,7 @@ for(const a of ammo)if(!a.got&&D(P,a)<24){a.got=true;P.ammo+=8;msg('+8 ammo')}
 const f0=pstate();gen.fuel=Math.max(0,gen.fuel-(f0==3?1.6:.5)*dt);
 if(f0==3&&Math.random()<dt*2)msg('Generator overloaded. It is burning fuel fast!',1.2);
 // noise radius
-const nz=S.noise>0?420:P.moving<.1?0:P.sneak?35:130;
+const nz=S.noise>0?S.nr:P.v?300:P.moving<.1?0:P.sneak?35:130;
 // cameras
 if(syn.on)for(const c of cams){const a=c.a0+Math.sin(S.t*.8+c.a0)*.7,rg=P.sneak?150:240,d=D(P,c),da=Math.abs(Math.atan2(Math.sin(Math.atan2(P.y-c.y,P.x-c.x)-a),Math.cos(Math.atan2(P.y-c.y,P.x-c.x)-a)));c.a=a;
  if(d<rg&&da<.45&&los(c.x,c.y,P.x,P.y)&&S.camCd<=0){S.camCd=10;msg('CCTV spotted you! Guards alerted.',3);for(const e of en)if(e.hp>0){e.st=1;e.lost=0}}}
@@ -107,7 +153,7 @@ for(const e of en){if(e.hp<=0)continue;const d=D(P,e);e.cd-=dt;
  if(S.hostile){if(see){e.st=1;e.lost=0}else if(d<nz&&e.st==0){e.st=2;e.tx=P.x;e.ty=P.y;e.lost=0}}
  if(e.st==1){e.a=ang;if(!see){e.lost+=dt;if(e.lost>3){e.st=2;e.tx=P.x;e.ty=P.y;e.lost=0}}else e.lost=0;
   if(d>170)mv(e,Math.cos(ang)*85*dt,Math.sin(ang)*85*dt,9);
-  if(e.cd<=0&&see){e.cd=1.1;shoot(e,ang+(Math.random()-.5)*.3,380,0,12);bang(.12)}}
+  if(e.cd<=0&&see){e.cd=1.1;shoot(e,ang+(Math.random()-.5)*.3,380,0,TY[e.t][2]);bang(.12)}}
  else{let tx=e.tx,ty=e.ty;const dd=Math.hypot(tx-e.x,ty-e.y);
   if(dd>8){const a=Math.atan2(ty-e.y,tx-e.x);e.a=a;mv(e,Math.cos(a)*(e.st==2?70:35)*dt,Math.sin(a)*(e.st==2?70:35)*dt,9)}
   else{e.pt-=dt;if(e.pt<=0){e.pt=2+Math.random()*3;e.st=0;e.tx=e.hx+(Math.random()-.5)*140;e.ty=e.hy+(Math.random()-.5)*140;if(hit(e.tx,e.ty,10)){e.tx=e.hx;e.ty=e.hy}}}}}
@@ -117,14 +163,24 @@ for(const b of bul){b.x+=b.vx*dt;b.y+=b.vy*dt;b.t-=dt;if(hit(b.x,b.y,0))b.t=0;
  else if(Math.hypot(b.x-P.x,b.y-P.y)<11){P.hp-=b.dmg;b.t=0;shake=6}}
 bul=bul.filter(b=>b.t>0);
 if(hum)hum.gain.value=pstate()?.07*Math.max(.15,1-D(P,gen)/800):0;
-if(P.hp<=0){run=false;ui(`<h1>YOU WENT DOWN</h1><p>The neighbourhood stays dark tonight.</p><button onclick="start()">Try again</button>`)}
-if(!S.done&&S.deliv>0&&gen.fuel>=50){S.done=true;run=false;choose()}}
-function choose(){ui(`<h1>THE POWER CHOICE</h1><p>The generator is back up, but it cannot feed everyone. Where does tonight's electricity go?</p><button onclick="finish(0)">The clinic</button><button onclick="finish(1)">The market</button><p><small>Your choice changes who trusts you tomorrow.</small></p>`)}
-function finish(c){const style=S.kills==0&&!S.fired?'You moved through the dark like a ghost. Nobody saw you.':S.traded&&!S.fired?'You traded your way through, and the Syndicate remembers a fair deal.':S.fired?'You fought for it. Your name is known on both sides of the dark.':'You made it through.';
-const t=c?'Stalls reopened and traders ate. The Market Quarter backs you, but the clinic stays dark and people there are waiting.':'The clinic lit up. Patients got treated and the nurses will help you later, but the market stays dark and prices climb.';
-ui(`<h1>NIGHT ONE SURVIVED</h1><p>${style}</p><p>${t}</p><p><small>Kills: ${S.kills} | Syndicate generator sabotaged: ${S.sab?'yes':'no'} | Medicine traded: ${S.traded?'yes':'no'}<br>Ending: ${c?'The Market Holds':'The Clinic Lives'}. Two endings so far. Can you find the other?</small></p><button onclick="start()">Play again</button>`)}
+if(P.hp<=0)fail('You went down. The street stays dark.');if(run)check(dt)}
+function check(dt){const m=MS[mi],t=m[2];let ok=0;
+if(t=='F')ok=S.deliv>=m[4].length;
+else if(t=='G'){const q=m[4][S.gi];if(Math.hypot(P.x-q[0],P.y-q[1])<40){S.gi++;if(S.gi>=m[4].length)ok=1;else msg('Checkpoint reached. Next one.')}}
+else if(t=='K')ok=en.every(e=>e.hp<=0);
+else if(t=='S')ok=!syn.on;
+else{S.hold-=dt;S.wv-=dt;if(S.wv<=0){S.wv=10;const e=mk(Math.random()<.5?1500:120,150+Math.random()*700,mi>15?2:0);e.hx=gen.x;e.hy=gen.y;e.st=2;e.tx=gen.x;e.ty=gen.y;en.push(e)}if(gen.fuel<=0)return fail('The generator died.');ok=S.hold<=0}
+if(ok&&run)done()}
 function ui(h){$('box').innerHTML=h;$('ui').style.display='flex'}
-function start(){init();run=true;$('ui').style.display='none';aud();if(AC&&AC.state=='suspended')AC.resume();last=performance.now()}
+const sv=()=>{try{return Math.min(19,+localStorage.getItem('lg_m')||0)}catch(e){return 0}};
+function brief(n){init(n);run=false;const m=MS[n],w=WP.find(w=>w[8]==n+1&&n>0);ui(`<h1>MISSION ${n+1} OF 20</h1><p><b>${m[0]}</b><br><small>${m[1]}</small></p><p>${m[3]}</p>${w?`<p>New weapon: <b>${w[0]}</b>. Press Z or GUN to switch.</p>`:''}<button onclick="go()">Start</button>`)}
+function go(){$('ui').style.display='none';run=true;aud();if(AC&&AC.state=='suspended')AC.resume();last=performance.now();msg(MS[mi][0],3)}
+function win(x=''){run=false;try{localStorage.setItem('lg_m',mi+1)}catch(e){}
+if(mi>=19)return ui(`<h1>THE CITY CHOSE</h1><p>${x}</p><p><small>Kills ${S.kills}. All 20 missions done.</small></p><button onclick="brief(0)">Play again</button>`);
+ui(`<h1>MISSION COMPLETE</h1><p>${x||MS[mi][0]+' done.'}</p><p><small>Kills ${S.kills} | ${S.fired?'Loud':'Quiet'} run</small></p><button onclick="brief(mi+1)">Next mission</button>`)}
+function fail(t){run=false;ui(`<h1>MISSION FAILED</h1><p>${t}</p><button onclick="brief(mi)">Retry</button>`)}
+function done(){run=false;if(mi==7)ui(`<h1>THE POWER CHOICE</h1><p>One neighbourhood gets tonight's light.</p><button onclick="win('The clinic is lit. Nurses will help you later.')">Clinic</button><button onclick="win('The market is lit. Traders owe you.')">Market</button>`);
+else if(mi==19)ui(`<h1>THE SWITCH</h1><p>Who gets light first?</p><button onclick="win('Shared grid: every district gets power in turn. Slow but fair. The Directorate falls.')">Share it</button><button onclick="win('Your community first. Your street shines while others wait.')">My community</button><button onclick="win('You sell the switch. Power returns fast, but you now answer to the Directorate.')">Sell it</button>`);else win()}
 // render
 function draw(){
 const vwW=vw/Z,vhH=vh/Z;cx=Math.max(0,Math.min(W-vwW,P.x-vwW/2));cy=Math.max(0,Math.min(H-vhH,P.y-vhH/2));if(vwW>W)cx=(W-vwW)/2;if(vhH>H)cy=(H-vhH)/2;
@@ -140,26 +196,25 @@ for(const a of ammo)if(!a.got){g.fillStyle='#c9b458';g.fillRect(a.x-7,a.y-5,14,1
 const box=(o,col,lab)=>{g.fillStyle=col;g.fillRect(o.x-16,o.y-12,32,24);g.fillStyle='#000';g.fillRect(o.x-10,o.y-6,20,12);g.fillStyle='#fff9';g.fillText(lab,o.x,o.y-18)};
 box(gen,PC[pstate()],'YOUR GENERATOR [E]');box(syn,syn.on?'#c0392b':'#444','SYNDICATE GEN [E]');
 if(syn.on)for(const c of cams){const a=c.a||c.a0;g.fillStyle='#ff3b3033';g.beginPath();g.moveTo(c.x,c.y);g.arc(c.x,c.y,230,a-.45,a+.45);g.fill();g.fillStyle='#f55';g.fillRect(c.x-4,c.y-4,8,8)}
-g.fillStyle='#ffc857';g.beginPath();g.arc(fixer.x,fixer.y,10,0,7);g.fill();g.fillStyle='#fff9';g.fillText(S.traded?'FIXER':'FIXER: trade 1 medicine [E]',fixer.x,fixer.y-18);
-for(const e of en){g.save();g.translate(e.x,e.y);g.rotate(e.a);g.fillStyle=e.hp<=0?'#3a2222':e.st==1?'#ff4d4d':'#b5483e';g.beginPath();g.arc(0,0,10,0,7);g.fill();if(e.hp>0){g.fillStyle='#000';g.fillRect(4,-2,12,4)}g.restore()}
-g.save();g.translate(P.x,P.y);g.rotate(P.ang);g.fillStyle=P.sneak?'#6fb7ff':'#58d68d';g.beginPath();g.arc(0,0,10,0,7);g.fill();g.fillStyle='#fff';g.fillRect(4,-2,14,4);g.restore();
+if(fixer){ch(fixer.x,fixer.y,0,LK[4],0);g.fillStyle='#fff9';g.fillText(S.traded?'FIXER':'FIXER: trade 1 medicine [E]',fixer.x,fixer.y-34)}
+for(const v of V){g.save();g.translate(v.x,v.y);g.rotate(v.a);g.fillStyle='#0006';g.fillRect(-v.w/2+3,-v.h/2+4,v.w,v.h);g.fillStyle=v.c;g.fillRect(-v.w/2,-v.h/2,v.w,v.h);g.fillStyle='#223';g.fillRect(v.w/6,-v.h/2+2,v.w/5,v.h-4);g.fillStyle='#ffe9a0';g.fillRect(v.w/2-3,-v.h/2+1,3,3);g.fillRect(v.w/2-3,v.h/2-4,3,3);g.restore()}
+for(const e of en){if(e.hp<=0){g.fillStyle='#3a2222';g.beginPath();g.ellipse(e.x,e.y+6,13,6,0,0,7);g.fill();continue}ch(e.x,e.y,e.a,LK[e.t],S.t*6+e.x)}
+if(!P.v)ch(P.x,P.y,P.ang,LK[3],P.wk);
 g.fillStyle='#ffe28a';for(const b of bul)g.fillRect(b.x-2,b.y-2,4,4);
 // darkness
 dg.globalCompositeOperation='source-over';dg.setTransform(1,0,0,1,0,0);dg.clearRect(0,0,vw,vh);dg.fillStyle='rgba(2,4,12,.94)';dg.fillRect(0,0,vw,vh);tf(dg);dg.globalCompositeOperation='destination-out';
 const L=(x,y,r)=>{const q=dg.createRadialGradient(x,y,r*.1,x,y,r);q.addColorStop(0,'rgba(0,0,0,1)');q.addColorStop(1,'rgba(0,0,0,0)');dg.fillStyle=q;dg.fillRect(x-r,y-r,r*2,r*2)};
 const ps=pstate(),fl=ps==3&&Math.random()<.3?.4:1;
-L(P.x,P.y,P.sneak?110:150);if(S.flash>0)L(P.x,P.y,260);
+L(P.x,P.y,P.sneak?110:150);if(P.v)L(P.x+Math.cos(P.v.a)*90,P.y+Math.sin(P.v.a)*90,200);if(S.flash>0)L(P.x,P.y,260);
 if(ps){const r=[0,90,170,230][ps]*fl;[[150,700],[460,660],[300,890],[480,820],[gen.x,gen.y]].forEach(p=>L(p[0],p[1],r));
  if(ps>=2)[[600,600],[900,540],[780,860],[620,380]].forEach(p=>L(p[0],p[1],140*fl))}
-if(syn.on)[[1330,235],[1250,345],[1420,345],[1180,390]].forEach(p=>L(p[0],p[1],190));
-g.setTransform(1,0,0,1,0,0);g.drawImage(dk,0,0)}
-function hud(){const ps=pstate();$('pw').textContent=`POWER: ${PN[ps]} (${gen.fuel|0}%)`;$('pw').style.color=PC[ps];$('hp').textContent=`Health ${Math.max(0,P.hp|0)}`;$('am').textContent=`Ammo ${P.ammo}`;$('it').textContent=`Fuel cans ${P.fuel} | Medicine ${P.med}`;
-$('obj').textContent=S.done?'':P.fuel>0?'Carry the fuel back to your generator (south-west) and press USE.':S.deliv>0?'Keep the generator above 50% fuel.':'Get fuel from the workshop (north-east). Fight, sneak, trade, or cut the Syndicate power first.';
+if(syn.on)L(syn.x,syn.y,230);for(const e of en)if(e.hp>0)L(e.x,e.y,55);
+g.setTransform(1,0,0,1,0,0);g.drawImage(dk,0,0);mini()}
+function hud(){const ps=pstate();$('pw').textContent=`POWER: ${PN[ps]} (${gen.fuel|0}%)`;$('pw').style.color=PC[ps];$('hp').textContent=`Health ${Math.max(0,P.hp|0)}`;$('am').textContent=`${AV()[P.w][0]} | Ammo ${P.ammo}`;$('it').textContent=`Fuel cans ${P.fuel} | Medicine ${P.med}`;
+$('obj').textContent=ot();
 if(toastT>0){toastT-=1/60;if(toastT<=0)$('toast').textContent=''}}
 function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;if(run){update(dt);}if(P){draw();hud()}requestAnimationFrame(loop)}
-init();draw=draw;
-ui(`<h1>LAST GENERATOR</h1><p><small>A Nigerian urban survival shooter</small></p><p>The grid is down and your street's generator is almost dry. Get fuel from the workshop before the lights go out for good.</p>
-<p>${TOUCH?'Left thumb: move. FIRE shoots (auto-aims). USE interacts. SNEAK halves your noise. MED heals.':'<b>WASD</b> move, <b>mouse</b> aim and shoot, <b>Shift</b> sneak, <b>E</b> use, <b>Q</b> medicine.'}</p>
-<p><small>Power on means light, but also CCTV. Power off means stealth, but you cannot see. Every choice changes the night.</small></p><button onclick="start()">Start night one</button>`);
+init(0);run=false;
+ui(`<h1>LAST GENERATOR</h1><p><small>A Nigerian urban survival shooter. 20 missions.</small></p><p>The grid fell on a Thursday night, and someone switched it off on purpose. You are Ayo, a technician who knows every substation in the city. Five factions want the light. You decide who gets it.</p><p>${TOUCH?'Left thumb moves. FIRE shoots (auto-aim). USE interacts or drives. GUN switches weapon. SNEAK, MED.':'<b>WASD</b> move, <b>mouse</b> aim and shoot, <b>Shift</b> sneak, <b>E</b> use or drive, <b>Z</b> switch weapon, <b>Q</b> medicine.'}</p><button onclick="brief(sv())">${sv()?'Continue (mission '+(sv()+1)+')':'Start'}</button><button onclick="brief(0)">New game</button>`);
 requestAnimationFrame(loop);
 </script></body></html>
