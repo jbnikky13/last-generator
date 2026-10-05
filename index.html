@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>LAST GENERATOR</title>
+<style>
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#06070c;color:#ece6d6;font:14px/1.4 "Trebuchet MS",system-ui,sans-serif;overflow:hidden;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;top:0;left:0;right:0;padding:calc(8px + env(safe-area-inset-top)) 10px 0;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+.c{background:#000b;border:1px solid #ffffff22;border-radius:8px;padding:3px 9px;white-space:nowrap}
+#pw{font-weight:700}
+#obj{position:fixed;top:calc(46px + env(safe-area-inset-top));left:10px;right:10px;color:#ffc857;text-shadow:0 1px 4px #000;pointer-events:none}
+#toast{position:fixed;left:0;right:0;top:34%;text-align:center;padding:0 16px;text-shadow:0 1px 5px #000;pointer-events:none;font-size:16px}
+#ui{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000d;padding:16px;z-index:5}
+#box{max-width:470px;background:#10131b;border:1px solid #ffc85755;border-radius:14px;padding:20px;max-height:100%;overflow:auto}
+h1{font:900 30px/1 Impact,"Arial Narrow",sans-serif;letter-spacing:2px;margin:0 0 4px;color:#ffc857}
+p{margin:8px 0}small{color:#9aa}
+button{font:inherit;font-weight:700;color:#10131b;background:#ffc857;border:0;border-radius:10px;padding:11px 16px;margin:6px 6px 0 0}
+#pad{position:fixed;inset:auto 0 0 0;height:45%;display:none;z-index:2}
+#stick{position:absolute;width:110px;height:110px;border-radius:50%;border:2px solid #ffffff44;display:none}
+#nub{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;background:#ffffff55}
+.b{position:absolute;width:64px;height:64px;border-radius:50%;background:#ffffff1c;border:2px solid #ffffff55;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
+</style></head><body>
+<canvas id="cv"></canvas>
+<div id="hud"><div class="c" id="pw">POWER</div><div class="c" id="hp"></div><div class="c" id="am"></div><div class="c" id="it"></div></div>
+<div id="obj"></div><div id="toast"></div>
+<div id="pad"><div id="stick"><div id="nub"></div></div>
+<div class="b" id="bF" style="right:18px;bottom:calc(60px + env(safe-area-inset-bottom))">FIRE</div>
+<div class="b" id="bE" style="right:96px;bottom:calc(24px + env(safe-area-inset-bottom))">USE</div>
+<div class="b" id="bS" style="right:96px;bottom:calc(100px + env(safe-area-inset-bottom))">SNEAK</div>
+<div class="b" id="bM" style="right:18px;bottom:calc(136px + env(safe-area-inset-bottom))">MED</div></div>
+<div id="ui"><div id="box"></div></div>
+<script>
+const $=id=>document.getElementById(id),cv=$('cv'),g=cv.getContext('2d'),dk=document.createElement('canvas'),dg=dk.getContext('2d');
+const W=1600,H=1000,TOUCH='ontouchstart'in window;let vw,vh,Z=1,cx=0,cy=0;
+function rs(){cv.width=dk.width=vw=innerWidth;cv.height=dk.height=vh=innerHeight;Z=Math.max(.8,Math.min(1.4,vw/760))}
+addEventListener('resize',rs);rs();
+const R=(x,y,w,h)=>({x,y,w,h});
+const walls=[R(60,560,330,14),R(450,560,90,14),R(60,560,14,380),R(526,560,14,380),R(60,926,480,14),R(90,590,150,100),
+R(1200,150,260,16),R(1200,150,16,160),R(1444,150,16,160),R(1200,294,100,16),R(1360,294,100,16),
+R(700,700,160,110),R(930,620,60,40),R(1040,700,60,40),R(880,430,70,40),R(640,400,60,60),R(1000,450,80,40),R(760,250,120,50),R(400,300,50,120),R(1100,560,40,90)];
+const hit=(x,y,r)=>walls.some(w=>x>w.x-r&&x<w.x+w.w+r&&y>w.y-r&&y<w.y+w.h+r);
+function mv(o,dx,dy,r){if(!hit(o.x+dx,o.y,r))o.x+=dx;if(!hit(o.x,o.y+dy,r))o.y+=dy;o.x=Math.max(12,Math.min(W-12,o.x));o.y=Math.max(12,Math.min(H-12,o.y))}
+function los(a,b,c,d){const n=Math.hypot(c-a,d-b)/12|0;for(let i=1;i<n;i++){const t=i/n;if(hit(a+(c-a)*t,b+(d-b)*t,0))return false}return true}
+const D=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+let P,gen,syn,en,bul,cans,ammo,cams,fixer,S,run=false,last=0,toastT=0,shake=0;
+function init(){
+P={x:300,y:790,hp:100,ammo:12,med:1,fuel:0,ang:0,sneak:false,cd:0,moving:0};
+gen={x:200,y:850,fuel:40};syn={x:1180,y:380,on:true};
+S={deliv:0,traded:false,hostile:true,kills:0,fired:false,sab:false,t:0,noise:0,done:false,camCd:0,flash:0};
+en=[[1240,410],[1450,390],[1310,235],[1385,335]].map(([x,y],i)=>({x,y,hx:x,hy:y,tx:x,ty:y,hp:3,st:0,a:i*1.5,cd:0,lost:0,pt:0}));
+bul=[];cans=[[1260,220],[1330,205],[1405,245]].map(([x,y])=>({x,y,got:false}));
+ammo=[{x:760,y:560,got:false},{x:1060,y:320,got:false},{x:330,y:640,got:false}];
+cams=[{x:1215,y:325,a0:1.2},{x:1445,y:325,a0:1.9}];fixer={x:1010,y:385};
+msg('Night one. The generator is running low.',4)}
+function msg(t,s=2.5){$('toast').textContent=t;toastT=s}
+const pstate=()=>gen.fuel<=0?0:gen.fuel<30?1:gen.fuel<85?2:3,PN=['OFF','LIMITED','STABLE','OVERLOADED'],PC=['#7d8597','#ffb347','#7CFC9A','#ff5a4d'];
+// audio
+let AC,hum;function aud(){if(AC)return;try{AC=new AudioContext();const o=AC.createOscillator(),f=AC.createBiquadFilter();hum=AC.createGain();o.type='sawtooth';o.frequency.value=46;f.frequency.value=150;o.connect(f);f.connect(hum);hum.connect(AC.destination);hum.gain.value=0;o.start()}catch(e){}}
+function bang(v){if(!AC)return;const n=4400,b=AC.createBuffer(1,n,22050),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);const s=AC.createBufferSource(),q=AC.createGain();q.gain.value=v;s.buffer=b;s.connect(q);q.connect(AC.destination);s.start()}
+// input
+const K={},M={x:0,y:0,on:false},T={mx:0,my:0,F:0,E:0,S:0,id:null,ox:0,oy:0};
+addEventListener('keydown',e=>{K[e.code]=1;aud();if(e.code=='KeyE')use();if(e.code=='KeyQ'||e.code=='KeyH')heal();if(e.code=='ShiftLeft')P&&(P.sneak=true);if(e.code=='Space')e.preventDefault()});
+addEventListener('keyup',e=>{K[e.code]=0;if(e.code=='ShiftLeft'&&P)P.sneak=false});
+cv.addEventListener('mousemove',e=>{M.x=e.clientX;M.y=e.clientY;M.on=true});
+cv.addEventListener('mousedown',()=>{aud();K.Mouse=1});addEventListener('mouseup',()=>K.Mouse=0);
+if(TOUCH){$('pad').style.display='block';const pd=$('pad'),st=$('stick');
+pd.addEventListener('touchstart',e=>{aud();for(const t of e.changedTouches){if(t.target.classList.contains('b'))continue;if(t.clientX<innerWidth*.55&&T.id==null){T.id=t.identifier;T.ox=t.clientX;T.oy=t.clientY;st.style.display='block';st.style.left=t.clientX-55+'px';st.style.top=t.clientY-55-(innerHeight*.55)+'px'}}},{passive:true});
+pd.addEventListener('touchmove',e=>{for(const t of e.changedTouches)if(t.identifier==T.id){let dx=t.clientX-T.ox,dy=t.clientY-T.oy,l=Math.hypot(dx,dy),m=Math.min(l,50);if(l>0){dx=dx/l*m;dy=dy/l*m}T.mx=dx/50;T.my=dy/50;$('nub').style.transform=`translate(${dx}px,${dy}px)`}},{passive:true});
+const end=e=>{for(const t of e.changedTouches)if(t.identifier==T.id){T.id=null;T.mx=T.my=0;st.style.display='none';$('nub').style.transform=''}};
+pd.addEventListener('touchend',end);pd.addEventListener('touchcancel',end);
+const hold=(id,k)=>{const b=$(id);b.addEventListener('touchstart',e=>{e.preventDefault();T[k]=1;aud()});b.addEventListener('touchend',()=>T[k]=0)};
+hold('bF','F');$('bE').addEventListener('touchstart',e=>{e.preventDefault();use()});$('bM').addEventListener('touchstart',e=>{e.preventDefault();heal()});
+$('bS').addEventListener('touchstart',e=>{e.preventDefault();P.sneak=!P.sneak;$('bS').style.background=P.sneak?'#ffc85777':''})}
+function heal(){if(!run)return;if(P.med>0&&P.hp<100){P.med--;P.hp=Math.min(100,P.hp+40);msg('Medicine used. +40 health')}else msg(P.med?'Health is full':'No medicine left')}
+function use(){if(!run)return;
+if(D(P,gen)<60){if(P.fuel>0){gen.fuel=Math.min(100,gen.fuel+30*P.fuel);S.deliv+=P.fuel;msg(`Generator refuelled (${P.fuel} can${P.fuel>1?'s':''})`);P.fuel=0}else msg(`Generator fuel: ${gen.fuel|0}%`);return}
+if(syn.on&&D(P,syn)<60){syn.on=false;S.sab=true;S.noise=.6;msg("Syndicate generator killed. Their cameras and lights are down.");return}
+if(D(P,fixer)<60){if(S.traded)msg('"We are good. Go safe."');else if(P.med>0){P.med--;P.fuel+=2;S.traded=true;S.hostile=false;msg('Traded 1 medicine for 2 fuel cans. The guards will let you pass.',3.5)}else msg('"No medicine, no fuel."');return}
+msg('Nothing to use here')}
+// game
+function shoot(from,ang,spd,own,dmg){bul.push({x:from.x,y:from.y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,own,dmg,t:1.2})}
+function update(dt){
+S.t+=dt;S.noise=Math.max(0,S.noise-dt);S.flash=Math.max(0,S.flash-dt);S.camCd=Math.max(0,S.camCd-dt);
+// player
+let ix=(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+T.mx,iy=(K.KeyS||K.ArrowDown?1:0)-(K.KeyW||K.ArrowUp?1:0)+T.my;
+const l=Math.hypot(ix,iy);if(l>1){ix/=l;iy/=l}P.moving=l;
+const sp=P.sneak?70:150;mv(P,ix*sp*dt,iy*sp*dt,9);
+// aim
+let tgt=null,bd=360;for(const e of en)if(e.hp>0){const d=D(P,e);if(d<bd&&los(P.x,P.y,e.x,e.y)){bd=d;tgt=e}}
+if(M.on&&!TOUCH)P.ang=Math.atan2(M.y/Z+cy-P.y,M.x/Z+cx-P.x);else if(tgt)P.ang=Math.atan2(tgt.y-P.y,tgt.x-P.x);else if(l>.2)P.ang=Math.atan2(iy,ix);
+P.cd-=dt;if((K.Mouse||K.Space||T.F)&&P.cd<=0){if(P.ammo>0){P.ammo--;P.cd=.28;shoot(P,P.ang+(Math.random()-.5)*.06,720,1,1);S.noise=.35;S.flash=.08;S.fired=true;S.hostile=true;bang(.25);shake=3}else{P.cd=.5;msg('Out of ammo')}}
+// pickups
+for(const c of cans)if(!c.got&&D(P,c)<24){c.got=true;P.fuel++;msg('Fuel can picked up')}
+for(const a of ammo)if(!a.got&&D(P,a)<24){a.got=true;P.ammo+=8;msg('+8 ammo')}
+// generator
+const f0=pstate();gen.fuel=Math.max(0,gen.fuel-(f0==3?1.6:.5)*dt);
+if(f0==3&&Math.random()<dt*2)msg('Generator overloaded. It is burning fuel fast!',1.2);
+// noise radius
+const nz=S.noise>0?420:P.moving<.1?0:P.sneak?35:130;
+// cameras
+if(syn.on)for(const c of cams){const a=c.a0+Math.sin(S.t*.8+c.a0)*.7,rg=P.sneak?150:240,d=D(P,c),da=Math.abs(Math.atan2(Math.sin(Math.atan2(P.y-c.y,P.x-c.x)-a),Math.cos(Math.atan2(P.y-c.y,P.x-c.x)-a)));c.a=a;
+ if(d<rg&&da<.45&&los(c.x,c.y,P.x,P.y)&&S.camCd<=0){S.camCd=10;msg('CCTV spotted you! Guards alerted.',3);for(const e of en)if(e.hp>0){e.st=1;e.lost=0}}}
+// enemies
+for(const e of en){if(e.hp<=0)continue;const d=D(P,e);e.cd-=dt;
+ const rg=(syn.on?260:110)*(P.sneak?.6:1),ang=Math.atan2(P.y-e.y,P.x-e.x),da=Math.abs(Math.atan2(Math.sin(ang-e.a),Math.cos(ang-e.a)));
+ const see=d<rg&&(da<.9||d<45)&&los(e.x,e.y,P.x,P.y);
+ if(S.hostile){if(see){e.st=1;e.lost=0}else if(d<nz&&e.st==0){e.st=2;e.tx=P.x;e.ty=P.y;e.lost=0}}
+ if(e.st==1){e.a=ang;if(!see){e.lost+=dt;if(e.lost>3){e.st=2;e.tx=P.x;e.ty=P.y;e.lost=0}}else e.lost=0;
+  if(d>170)mv(e,Math.cos(ang)*85*dt,Math.sin(ang)*85*dt,9);
+  if(e.cd<=0&&see){e.cd=1.1;shoot(e,ang+(Math.random()-.5)*.3,380,0,12);bang(.12)}}
+ else{let tx=e.tx,ty=e.ty;const dd=Math.hypot(tx-e.x,ty-e.y);
+  if(dd>8){const a=Math.atan2(ty-e.y,tx-e.x);e.a=a;mv(e,Math.cos(a)*(e.st==2?70:35)*dt,Math.sin(a)*(e.st==2?70:35)*dt,9)}
+  else{e.pt-=dt;if(e.pt<=0){e.pt=2+Math.random()*3;e.st=0;e.tx=e.hx+(Math.random()-.5)*140;e.ty=e.hy+(Math.random()-.5)*140;if(hit(e.tx,e.ty,10)){e.tx=e.hx;e.ty=e.hy}}}}}
+// bullets
+for(const b of bul){b.x+=b.vx*dt;b.y+=b.vy*dt;b.t-=dt;if(hit(b.x,b.y,0))b.t=0;
+ if(b.own){for(const e of en)if(e.hp>0&&Math.hypot(b.x-e.x,b.y-e.y)<12){e.hp-=b.dmg;b.t=0;e.st=1;if(e.hp<=0)S.kills++}}
+ else if(Math.hypot(b.x-P.x,b.y-P.y)<11){P.hp-=b.dmg;b.t=0;shake=6}}
+bul=bul.filter(b=>b.t>0);
+if(hum)hum.gain.value=pstate()?.07*Math.max(.15,1-D(P,gen)/800):0;
+if(P.hp<=0){run=false;ui(`<h1>YOU WENT DOWN</h1><p>The neighbourhood stays dark tonight.</p><button onclick="start()">Try again</button>`)}
+if(!S.done&&S.deliv>0&&gen.fuel>=50){S.done=true;run=false;choose()}}
+function choose(){ui(`<h1>THE POWER CHOICE</h1><p>The generator is back up, but it cannot feed everyone. Where does tonight's electricity go?</p><button onclick="finish(0)">The clinic</button><button onclick="finish(1)">The market</button><p><small>Your choice changes who trusts you tomorrow.</small></p>`)}
+function finish(c){const style=S.kills==0&&!S.fired?'You moved through the dark like a ghost. Nobody saw you.':S.traded&&!S.fired?'You traded your way through, and the Syndicate remembers a fair deal.':S.fired?'You fought for it. Your name is known on both sides of the dark.':'You made it through.';
+const t=c?'Stalls reopened and traders ate. The Market Quarter backs you, but the clinic stays dark and people there are waiting.':'The clinic lit up. Patients got treated and the nurses will help you later, but the market stays dark and prices climb.';
+ui(`<h1>NIGHT ONE SURVIVED</h1><p>${style}</p><p>${t}</p><p><small>Kills: ${S.kills} | Syndicate generator sabotaged: ${S.sab?'yes':'no'} | Medicine traded: ${S.traded?'yes':'no'}<br>Ending: ${c?'The Market Holds':'The Clinic Lives'}. Two endings so far. Can you find the other?</small></p><button onclick="start()">Play again</button>`)}
+function ui(h){$('box').innerHTML=h;$('ui').style.display='flex'}
+function start(){init();run=true;$('ui').style.display='none';aud();if(AC&&AC.state=='suspended')AC.resume();last=performance.now()}
+// render
+function draw(){
+const vwW=vw/Z,vhH=vh/Z;cx=Math.max(0,Math.min(W-vwW,P.x-vwW/2));cy=Math.max(0,Math.min(H-vhH,P.y-vhH/2));if(vwW>W)cx=(W-vwW)/2;if(vhH>H)cy=(H-vhH)/2;
+const sx=shake?(Math.random()-.5)*shake:0,sy=shake?(Math.random()-.5)*shake:0;shake*=.85;if(shake<.3)shake=0;
+const tf=(c)=>c.setTransform(Z,0,0,Z,(-cx+sx)*Z,(-cy+sy)*Z);
+g.setTransform(1,0,0,1,0,0);g.fillStyle='#0b0d12';g.fillRect(0,0,vw,vh);tf(g);
+g.fillStyle='#161a22';g.fillRect(0,0,W,H);g.fillStyle='#232832';g.fillRect(0,480,W,70);g.fillRect(560,0,70,H);g.fillRect(1100,0,60,H);
+g.strokeStyle='#3b4252';g.setLineDash([22,18]);g.lineWidth=3;g.beginPath();g.moveTo(0,515);g.lineTo(W,515);g.moveTo(595,0);g.lineTo(595,H);g.stroke();g.setLineDash([]);
+for(const w of walls){g.fillStyle='#3a3f4c';g.fillRect(w.x,w.y,w.w,w.h);g.fillStyle='#4b5262';g.fillRect(w.x,w.y,w.w,3)}
+g.font='bold 12px sans-serif';g.textAlign='center';g.fillStyle='#8a93a6';g.fillText('CLINIC',780,760);g.fillText('HOME',165,645);g.fillText('WORKSHOP',1330,185);g.fillText('MARKET',900,420);
+for(const c of cans)if(!c.got){g.fillStyle='#e0402f';g.fillRect(c.x-7,c.y-9,14,18);g.fillStyle='#fff';g.fillRect(c.x-3,c.y-12,6,4)}
+for(const a of ammo)if(!a.got){g.fillStyle='#c9b458';g.fillRect(a.x-7,a.y-5,14,10)}
+const box=(o,col,lab)=>{g.fillStyle=col;g.fillRect(o.x-16,o.y-12,32,24);g.fillStyle='#000';g.fillRect(o.x-10,o.y-6,20,12);g.fillStyle='#fff9';g.fillText(lab,o.x,o.y-18)};
+box(gen,PC[pstate()],'YOUR GENERATOR [E]');box(syn,syn.on?'#c0392b':'#444','SYNDICATE GEN [E]');
+if(syn.on)for(const c of cams){const a=c.a||c.a0;g.fillStyle='#ff3b3033';g.beginPath();g.moveTo(c.x,c.y);g.arc(c.x,c.y,230,a-.45,a+.45);g.fill();g.fillStyle='#f55';g.fillRect(c.x-4,c.y-4,8,8)}
+g.fillStyle='#ffc857';g.beginPath();g.arc(fixer.x,fixer.y,10,0,7);g.fill();g.fillStyle='#fff9';g.fillText(S.traded?'FIXER':'FIXER: trade 1 medicine [E]',fixer.x,fixer.y-18);
+for(const e of en){g.save();g.translate(e.x,e.y);g.rotate(e.a);g.fillStyle=e.hp<=0?'#3a2222':e.st==1?'#ff4d4d':'#b5483e';g.beginPath();g.arc(0,0,10,0,7);g.fill();if(e.hp>0){g.fillStyle='#000';g.fillRect(4,-2,12,4)}g.restore()}
+g.save();g.translate(P.x,P.y);g.rotate(P.ang);g.fillStyle=P.sneak?'#6fb7ff':'#58d68d';g.beginPath();g.arc(0,0,10,0,7);g.fill();g.fillStyle='#fff';g.fillRect(4,-2,14,4);g.restore();
+g.fillStyle='#ffe28a';for(const b of bul)g.fillRect(b.x-2,b.y-2,4,4);
+// darkness
+dg.globalCompositeOperation='source-over';dg.setTransform(1,0,0,1,0,0);dg.clearRect(0,0,vw,vh);dg.fillStyle='rgba(2,4,12,.94)';dg.fillRect(0,0,vw,vh);tf(dg);dg.globalCompositeOperation='destination-out';
+const L=(x,y,r)=>{const q=dg.createRadialGradient(x,y,r*.1,x,y,r);q.addColorStop(0,'rgba(0,0,0,1)');q.addColorStop(1,'rgba(0,0,0,0)');dg.fillStyle=q;dg.fillRect(x-r,y-r,r*2,r*2)};
+const ps=pstate(),fl=ps==3&&Math.random()<.3?.4:1;
+L(P.x,P.y,P.sneak?110:150);if(S.flash>0)L(P.x,P.y,260);
+if(ps){const r=[0,90,170,230][ps]*fl;[[150,700],[460,660],[300,890],[480,820],[gen.x,gen.y]].forEach(p=>L(p[0],p[1],r));
+ if(ps>=2)[[600,600],[900,540],[780,860],[620,380]].forEach(p=>L(p[0],p[1],140*fl))}
+if(syn.on)[[1330,235],[1250,345],[1420,345],[1180,390]].forEach(p=>L(p[0],p[1],190));
+g.setTransform(1,0,0,1,0,0);g.drawImage(dk,0,0)}
+function hud(){const ps=pstate();$('pw').textContent=`POWER: ${PN[ps]} (${gen.fuel|0}%)`;$('pw').style.color=PC[ps];$('hp').textContent=`Health ${Math.max(0,P.hp|0)}`;$('am').textContent=`Ammo ${P.ammo}`;$('it').textContent=`Fuel cans ${P.fuel} | Medicine ${P.med}`;
+$('obj').textContent=S.done?'':P.fuel>0?'Carry the fuel back to your generator (south-west) and press USE.':S.deliv>0?'Keep the generator above 50% fuel.':'Get fuel from the workshop (north-east). Fight, sneak, trade, or cut the Syndicate power first.';
+if(toastT>0){toastT-=1/60;if(toastT<=0)$('toast').textContent=''}}
+function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;if(run){update(dt);}if(P){draw();hud()}requestAnimationFrame(loop)}
+init();draw=draw;
+ui(`<h1>LAST GENERATOR</h1><p><small>A Nigerian urban survival shooter</small></p><p>The grid is down and your street's generator is almost dry. Get fuel from the workshop before the lights go out for good.</p>
+<p>${TOUCH?'Left thumb: move. FIRE shoots (auto-aims). USE interacts. SNEAK halves your noise. MED heals.':'<b>WASD</b> move, <b>mouse</b> aim and shoot, <b>Shift</b> sneak, <b>E</b> use, <b>Q</b> medicine.'}</p>
+<p><small>Power on means light, but also CCTV. Power off means stealth, but you cannot see. Every choice changes the night.</small></p><button onclick="start()">Start night one</button>`);
+requestAnimationFrame(loop);
+</script></body></html>
